@@ -4,6 +4,8 @@ Main Flask Application
 """
 
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, g, send_file
+from dotenv import load_dotenv
+load_dotenv()
 from database import (
     init_db, get_db, get_equipment_with_status, get_equipment_by_id,
     get_inspection_history, add_equipment, record_inspection,
@@ -31,8 +33,8 @@ app = Flask(__name__, template_folder='template')
 
 app.secret_key = os.environ.get('SECRET_KEY', 'your-flask-secret-key-here')
 
-GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', 'your-google-client-id-here')
-GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', 'your-google-client-secret-here')
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
 
 def parse_google_jwt(credential):
     """Parse payload from Google ID Token JWT"""

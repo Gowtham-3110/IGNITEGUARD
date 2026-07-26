@@ -17,7 +17,7 @@
         <div class="google-auth-box">
             <div class="box-label"><i class="fa-brands fa-google"></i> Google Identity Authentication</div>
             
-            {% if google_client_id and 'demoapp' not in google_client_id %}
+            {% if google_client_id and 'demoapp' not in google_client_id and 'your-google-client-id' not in google_client_id %}
             <!-- Official Google Identity Services SDK Button Container -->
             <div id="g_id_onload"
                  data-client_id="{{ google_client_id }}"
