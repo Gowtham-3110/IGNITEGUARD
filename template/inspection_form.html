@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Record Inspection — IgniteGuard{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--slate-100);">
+        <div class="brand-icon-wrapper" style="width: 44px; height: 44px; font-size: 1.25rem;">
+            <i class="fa-solid fa-clipboard-check"></i>
+        </div>
+        <div>
+            <h1>Record Inspection Entry</h1>
+            <p style="color: var(--slate-500); font-size: 0.875rem;">Log safety compliance inspection results</p>
+        </div>
+    </div>
+
+    <!-- Equipment Context Pill Card -->
+    <div style="background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: var(--radius-md); padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <strong style="font-size: 1.05rem; color: var(--slate-900);">{{ equipment.serial_number }}</strong>
+                <span class="badge" style="background: var(--brand-primary-light); color: var(--brand-primary); margin-left: 0.5rem;">
+                    {{ equipment.type_name }}
+                </span>
+            </div>
+        </div>
+        <div style="font-size: 0.85rem; color: var(--slate-600); margin-top: 0.3rem;">
+            <i class="fa-solid fa-location-dot" style="color: var(--slate-400); margin-right: 0.25rem;"></i>
+            {{ equipment.building }}, Floor {{ equipment.floor }}, Room {{ equipment.room }}
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="inspection_date"><i class="fa-solid fa-calendar-day" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Inspection Date *</label>
+            <input type="date" name="inspection_date" id="inspection_date"
+                   value="{{ form_data.inspection_date if form_data else '' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="inspector_name"><i class="fa-solid fa-user-check" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Inspector Name *</label>
+            <input type="text" name="inspector_name" id="inspector_name"
+                   value="{{ form_data.inspector_name if form_data else (current_user.name if current_user else '') }}"
+                   required minlength="2" placeholder="e.g., Inspector Rajesh K.">
+        </div>
+
+        <div class="form-group">
+            <label for="result"><i class="fa-solid fa-list-check" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Inspection Result *</label>
+            <select name="result" id="result" required>
+                <option value="pass" {% if form_data and form_data.result == 'pass' %}selected{% endif %}>✓ Pass (Satisfactory Condition)</option>
+                <option value="needs_repair" {% if form_data and form_data.result == 'needs_repair' %}selected{% endif %}>⚠ Needs Repair / Maintenance Required</option>
+                <option value="fail" {% if form_data and form_data.result == 'fail' %}selected{% endif %}>✗ Fail (Decommission / Immediate Action)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="notes"><i class="fa-solid fa-comment-dots" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Observations & Audit Notes</label>
+            <textarea name="notes" id="notes" rows="3" placeholder="Log any physical condition observations, pressure gauge readings, tag numbers...">{{ form_data.notes if form_data else '' }}</textarea>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-check"></i> Submit Inspection Record
+            </button>
+            <a href="{{ url_for('equipment_detail', equipment_id=equipment.equipment_id) }}" class="btn btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

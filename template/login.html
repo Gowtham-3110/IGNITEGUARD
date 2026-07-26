@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — IgniteGuard Fire Safety Register{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">
+                <i class="fa-solid fa-fire-flame-curved" style="color: white; font-size: 1.8rem;"></i>
+            </div>
+            <h1>IgniteGuard Safety Auth</h1>
+            <p class="auth-subtitle">Access the Fire Safety Asset Register & Predictive Risk Engine</p>
+        </div>
+
+        <!-- Google Sign-In Section -->
+        <div class="google-auth-box">
+            <div class="box-label"><i class="fa-brands fa-google"></i> Google Identity Authentication</div>
+            
+            {% if google_client_id and 'demoapp' not in google_client_id %}
+            <!-- Official Google Identity Services SDK Button Container -->
+            <div id="g_id_onload"
+                 data-client_id="{{ google_client_id }}"
+                 data-context="signin"
+                 data-ux_mode="popup"
+                 data-callback="handleGoogleCredentialResponse"
+                 data-auto_prompt="false">
+            </div>
+
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="signin_with"
+                 data-size="large"
+                 data-logo_alignment="left"
+                 data-width="340">
+            </div>
+            {% else %}
+            <div class="oauth-notice">
+                <i class="fa-solid fa-lightbulb"></i> <strong>Google OAuth GIS:</strong> Set <code>GOOGLE_CLIENT_ID</code> in environment to enable official Google GIS OAuth.
+            </div>
+            {% endif %}
+
+        </div>
+
+        <div class="auth-divider">
+            <span>OR WORK EMAIL SIGN IN</span>
+        </div>
+
+        <!-- Standard Email & Password Form -->
+        <form action="{{ url_for('login') }}" method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="email"><i class="fa-solid fa-envelope" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Work / Google Email</label>
+                <input type="email" id="email" name="email" placeholder="user@gmail.com" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="password"><i class="fa-solid fa-key" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Account Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter account password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                <span>Sign In to Dashboard</span>
+                <i class="fa-solid fa-arrow-right" style="margin-left: 0.4rem;"></i>
+            </button>
+        </form>
+
+
+
+        <div class="auth-footer-note">
+            <i class="fa-solid fa-lock" style="margin-right: 0.25rem;"></i> Protected by IgniteGuard Access Control Engine
+        </div>
+    </div>
+</div>
+
+<!-- Load Google Identity Services SDK -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+function handleGoogleCredentialResponse(response) {
+    if (!response || !response.credential) return;
+
+    fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.redirect) {
+            window.location.href = data.redirect;
+        } else {
+            alert(data.message || 'Google sign-in failed. Please try again.');
+        }
+    })
+    .catch(err => {
+        console.error('Auth error:', err);
+        alert('Authentication error. Please use email login.');
+    });
+}
+
+
+</script>
+
+<style>
+.auth-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 120px);
+    padding: 3rem 1rem;
+    background: url('/static/images/login-bg.jpg') no-repeat center center / cover;
+    position: relative;
+    border-radius: 24px;
+    margin: 0.5rem;
+    overflow: hidden;
+    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.5);
+}
+
+.auth-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(15, 23, 42, 0.5) 0%, rgba(15, 23, 42, 0.85) 100%);
+    backdrop-filter: blur(2px);
+    z-index: 1;
+}
+
+.auth-card {
+    position: relative;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px);
+    border-radius: 24px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.3);
+    padding: 2.75rem;
+    width: 100%;
+    max-width: 460px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-logo {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #f97316 0%, #dc2626 100%);
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    box-shadow: 0 10px 20px rgba(234, 88, 12, 0.35);
+}
+
+.auth-header h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--slate-900);
+    margin-bottom: 0.35rem;
+}
+
+.auth-subtitle {
+    font-size: 0.875rem;
+    color: var(--slate-500);
+    line-height: 1.4;
+}
+
+.google-auth-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.box-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--slate-500);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.oauth-notice {
+    background: #fff8e6;
+    border: 1px solid #ffe082;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    color: #856404;
+    text-align: center;
+    max-width: 340px;
+}
+
+.btn-google-custom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: #ffffff;
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-md);
+    color: var(--slate-700);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-normal);
+}
+
+.btn-google-custom:hover {
+    background-color: var(--slate-50);
+    border-color: var(--brand-primary);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 1.75rem 0;
+}
+
+.auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--slate-200);
+}
+
+.auth-divider span {
+    padding: 0 0.85rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--slate-400);
+    letter-spacing: 0.08em;
+}
+
+.btn-block {
+    width: 100%;
+    justify-content: center;
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+}
+
+.auth-footer-note {
+    text-align: center;
+    margin-top: 1.75rem;
+    font-size: 0.75rem;
+    color: var(--slate-400);
+    font-weight: 500;
+}
+
+.demo-login-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--slate-200);
+}
+
+.demo-login-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--slate-400);
+    text-align: center;
+    margin-bottom: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+
+.demo-roles-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.demo-role-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.7rem 1rem;
+    border: 1.5px solid;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.demo-role-btn:hover {
+    transform: translateX(3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.demo-role-btn i {
+    font-size: 1.1rem;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.demo-role-btn div { flex: 1; }
+.demo-role-btn strong { display: block; font-size: 0.875rem; }
+.demo-role-btn span { font-size: 0.72rem; opacity: 0.65; }
+
+.demo-role-btn.role-inspector { border-color: #a7f3d0; background: #f0fdf4; color: #065f46; }
+.demo-role-btn.role-inspector:hover { border-color: #10b981; background: #d1fae5; }
+.demo-role-btn.role-admin { border-color: #c4b5fd; background: #faf5ff; color: #5b21b6; }
+.demo-role-btn.role-admin:hover { border-color: #6366f1; background: #ede9fe; }
+.demo-role-btn.role-auditor { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+.demo-role-btn.role-auditor:hover { border-color: #f59e0b; background: #fef3c7; }
+</style>
+{% endblock %}
+

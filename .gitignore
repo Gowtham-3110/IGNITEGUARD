@@ -1,0 +1,31 @@
+# Python bytecode / unoptimized code
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Database files
+*.db
+*.sqlite3
+
+# Log files and temporary runtime files
+*.log
+flask_err.txt
+flask_out.txt
+
+# Environment variables
+.env
+
+# IDE and Editor folders
+.vscode/
+.idea/
+.kiro/
+
+# OS generated files
+.DS_Store
+Thumbs.db

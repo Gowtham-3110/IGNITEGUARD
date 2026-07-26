@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}All Equipment — IgniteGuard Fire Safety Register{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-title-group">
+        <h1>All Safety Assets & Equipment</h1>
+        <span class="header-subtitle">Comprehensive registry of fire safety assets, inspection dates, and risk status</span>
+    </div>
+    <a href="{{ url_for('add_equipment_view') }}" class="btn btn-primary">
+        <i class="fa-solid fa-plus"></i>
+        <span>Add Equipment</span>
+    </a>
+</div>
+
+<!-- Filter & Search Toolbar -->
+<div class="filter-bar">
+    <form method="GET" action="{{ url_for('equipment_list') }}" class="filter-form">
+        <div class="input-icon-group">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" name="search" placeholder="Search serial, building, room..."
+                   value="{{ search }}" class="filter-input">
+        </div>
+        <div>
+            <select name="status" class="filter-select">
+                <option value="">All Statuses</option>
+                <option value="overdue" {% if status == 'overdue' %}selected{% endif %}>Overdue</option>
+                <option value="approaching" {% if status == 'approaching' %}selected{% endif %}>Approaching</option>
+                <option value="good" {% if status == 'good' %}selected{% endif %}>Good</option>
+            </select>
+        </div>
+        <div>
+            <select name="type" class="filter-select">
+                <option value="">All Equipment Types</option>
+                {% for t in types %}
+                <option value="{{ t.type_id }}" {% if type_filter == t.type_id|string %}selected{% endif %}>
+                    {{ t.type_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm">
+            <i class="fa-solid fa-filter"></i> Filter
+        </button>
+        <a href="{{ url_for('equipment_list') }}" class="btn btn-ghost btn-sm">
+            <i class="fa-solid fa-rotate-left"></i> Reset
+        </a>
+    </form>
+    <div class="results-count">
+        <i class="fa-solid fa-layer-group" style="margin-right: 0.25rem;"></i> {{ count }} records found
+    </div>
+</div>
+
+{% if equipment %}
+<div class="table-responsive">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Priority</th>
+                <th>Serial Number</th>
+                <th>Equipment Type</th>
+                <th>Location</th>
+                <th>Last Inspection</th>
+                <th>Next Due Date</th>
+                <th>ML Prediction</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for eq in equipment %}
+            <tr class="row-{{ eq.urgency_status }}">
+                <td>
+                    {% if eq.urgency_status == 'overdue' %}
+                        <span class="badge badge-overdue">
+                            <i class="fa-solid fa-circle-exclamation"></i> OVERDUE
+                        </span>
+                    {% elif eq.urgency_status == 'approaching' %}
+                        <span class="badge badge-approaching">
+                            <i class="fa-solid fa-clock"></i> DUE SOON
+                        </span>
+                    {% else %}
+                        <span class="badge badge-good">
+                            <i class="fa-solid fa-check"></i> GOOD
+                        </span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ eq.serial_number }}</strong></td>
+                <td><span style="font-weight: 500;">{{ eq.type_name }}</span></td>
+                <td>
+                    <i class="fa-solid fa-location-dot" style="color: var(--slate-400); margin-right: 0.25rem;"></i>
+                    {{ eq.building }}, Fl {{ eq.floor }}, Rm {{ eq.room }}
+                </td>
+                <td>{{ eq.last_inspection_date or 'Never' }}</td>
+                <td class="{% if eq.urgency_status == 'overdue' %}text-danger{% elif eq.urgency_status == 'approaching' %}text-warning{% endif %}">
+                    {{ eq.next_due_date or 'N/A' }}
+                </td>
+                <td>
+                    {% if eq.at_risk %}
+                        <div class="risk-indicator-box" title="Confidence: {{ eq.confidence }}">
+                            <span class="badge badge-risk">
+                                <i class="fa-solid fa-triangle-exclamation"></i> {{ "%.0f"|format(eq.risk_probability * 100) }}% Risk
+                            </span>
+                            <div class="risk-bar-container">
+                                <div class="risk-bar-fill risk-bar-high" style="width: {{ eq.risk_probability * 100 }}%;"></div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="risk-indicator-box">
+                            <span class="badge badge-safe">
+                                <i class="fa-solid fa-shield-check"></i> Low Risk
+                            </span>
+                            <div class="risk-bar-container">
+                                <div class="risk-bar-fill risk-bar-low" style="width: 15%;"></div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">
+                    <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+                        <a href="{{ url_for('equipment_detail', equipment_id=eq.equipment_id) }}" class="btn btn-sm btn-secondary" title="View details">
+                            <i class="fa-solid fa-eye"></i> Details
+                        </a>
+                        <a href="{{ url_for('add_inspection', equipment_id=eq.equipment_id) }}" class="btn btn-sm btn-primary">
+                            <i class="fa-solid fa-clipboard-check"></i> Inspect
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="fa-solid fa-filter-circle-xmark"></i>
+    <h3>No matching equipment records found</h3>
+    <p>Try adjusting your search keywords or filter dropdown options.</p>
+    <a href="{{ url_for('add_equipment_view') }}" class="btn btn-primary" style="margin-top: 1rem;">
+        <i class="fa-solid fa-plus"></i> Add Equipment
+    </a>
+</div>
+{% endif %}
+{% endblock %}

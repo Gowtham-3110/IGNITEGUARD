@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — IgniteGuard Fire Safety Register{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <!-- Hero Status Banner -->
+    <div class="hero-banner">
+        <div class="hero-content">
+            <div class="system-status-pill">
+                <span class="pulse-dot"></span>
+                <span>System Active & Monitoring</span>
+            </div>
+            <h1>Safety Officer Command Center</h1>
+            <p>Real-time equipment tracking, regulatory compliance scheduling, and AI-powered inspection risk prediction.</p>
+        </div>
+        <div class="hero-actions">
+            <a href="{{ url_for('add_equipment_view') }}" class="btn btn-primary">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add Equipment</span>
+            </a>
+            <a href="{{ url_for('equipment_list') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-list-check"></i>
+                <span>All Assets</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card stat-total">
+            <div class="stat-icon">
+                <i class="fa-solid fa-fire-extinguisher"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-number">{{ total }}</span>
+                <span class="stat-label">Total Equipment</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-overdue">
+            <div class="stat-icon">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-number">{{ overdue }}</span>
+                <span class="stat-label">Inspection Overdue</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-approaching">
+            <div class="stat-icon">
+                <i class="fa-solid fa-clock"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-number">{{ approaching }}</span>
+                <span class="stat-label">Due Within 30 Days</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-good">
+            <div class="stat-icon">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-number">{{ good }}</span>
+                <span class="stat-label">Good Standing</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Header -->
+    <div class="page-header">
+        <div class="header-title-group">
+            <h2>Priority Inspection Queue</h2>
+            <span class="header-subtitle">Equipment items requiring urgent review or upcoming inspection</span>
+        </div>
+        <a href="{{ url_for('equipment_list') }}" class="btn btn-sm btn-secondary">
+            <i class="fa-solid fa-arrow-right"></i>
+            <span>View All Records</span>
+        </a>
+    </div>
+
+    {% if equipment %}
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Serial Number</th>
+                    <th>Type</th>
+                    <th>Location</th>
+                    <th>Last Inspected</th>
+                    <th>Next Due</th>
+                    <th>ML Risk Score</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eq in equipment %}
+                <tr class="row-{{ eq.urgency_status }}">
+                    <td>
+                        {% if eq.urgency_status == 'overdue' %}
+                            <span class="badge badge-overdue">
+                                <i class="fa-solid fa-circle-exclamation"></i> OVERDUE
+                            </span>
+                        {% elif eq.urgency_status == 'approaching' %}
+                            <span class="badge badge-approaching">
+                                <i class="fa-solid fa-clock"></i> DUE SOON
+                            </span>
+                        {% else %}
+                            <span class="badge badge-good">
+                                <i class="fa-solid fa-check"></i> GOOD
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ eq.serial_number }}</strong></td>
+                    <td>
+                        <span style="font-weight: 500;">{{ eq.type_name }}</span>
+                    </td>
+                    <td>
+                        <i class="fa-solid fa-location-dot" style="color: var(--slate-400); margin-right: 0.25rem;"></i>
+                        {{ eq.building }}, Fl {{ eq.floor }}, Rm {{ eq.room }}
+                    </td>
+                    <td>{{ eq.last_inspection_date or 'Never' }}</td>
+                    <td class="{% if eq.urgency_status == 'overdue' %}text-danger{% elif eq.urgency_status == 'approaching' %}text-warning{% endif %}">
+                        {{ eq.next_due_date or 'N/A' }}
+                    </td>
+                    <td>
+                        {% if eq.at_risk %}
+                            <div class="risk-indicator-box" title="Confidence: {{ eq.confidence }}">
+                                <span class="badge badge-risk">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> {{ "%.0f"|format(eq.risk_probability * 100) }}% Risk
+                                </span>
+                                <div class="risk-bar-container">
+                                    <div class="risk-bar-fill risk-bar-high" style="width: {{ eq.risk_probability * 100 }}%;"></div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="risk-indicator-box">
+                                <span class="badge badge-safe">
+                                    <i class="fa-solid fa-shield-check"></i> Low Risk
+                                </span>
+                                <div class="risk-bar-container">
+                                    <div class="risk-bar-fill risk-bar-low" style="width: 15%;"></div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+                            <a href="{{ url_for('equipment_detail', equipment_id=eq.equipment_id) }}" class="btn btn-sm btn-secondary" title="View details">
+                                <i class="fa-solid fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('add_inspection', equipment_id=eq.equipment_id) }}" class="btn btn-sm btn-primary">
+                                <i class="fa-solid fa-clipboard-check"></i>
+                                <span>Inspect</span>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fa-solid fa-folder-open"></i>
+        <h3>No equipment records found</h3>
+        <p>Start managing your safety equipment by adding your first record.</p>
+        <a href="{{ url_for('add_equipment_view') }}" class="btn btn-primary" style="margin-top: 1rem;">
+            <i class="fa-solid fa-plus"></i> Add Equipment
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- AI Model Retrain Card -->
+    <div class="ai-retrain-card">
+        <div>
+            <h3><i class="fa-solid fa-wand-magic-sparkles" style="color: #c084fc; margin-right: 0.5rem;"></i> Predictive Risk Engine</h3>
+            <p>Train the ML model on recent inspection historical logs to recalculate delay probability metrics.</p>
+        </div>
+        <a href="{{ url_for('retrain_model') }}" class="btn btn-secondary btn-sm">
+            <i class="fa-solid fa-rotate"></i> Retrain Model
+        </a>
+    </div>
+</div>
+{% endblock %}

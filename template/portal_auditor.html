@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}Compliance Auditor Portal — IgniteGuard{% endblock %}
+{% block content %}
+<div class="auditor-portal">
+
+  <div class="portal-hero auditor-hero">
+    <div class="portal-hero-inner">
+      <div class="portal-hero-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+      <div class="portal-hero-text">
+        <h1>Compliance Auditor Portal</h1>
+        <p>Review inspections, verify legal compliance, and generate audit reports.</p>
+      </div>
+      <div class="portal-hero-actions">
+        <button class="btn-auditor" onclick="document.getElementById('createAuditModal').style.display='flex'">
+          <i class="fa-solid fa-plus"></i> New Audit
+        </button>
+        <a href="{{ url_for('hazards_list') }}" class="btn-outline-auditor">
+          <i class="fa-solid fa-triangle-exclamation"></i> View Hazards
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compliance Overview -->
+  <div class="compliance-overview">
+    <div class="compliance-meter-card">
+      <div class="meter-title">Overall Compliance Score</div>
+      <div class="compliance-gauge">
+        <svg viewBox="0 0 200 110" class="gauge-svg">
+          <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#e2e8f0" stroke-width="16" stroke-linecap="round"/>
+          {% set angle = (compliance_pct / 100) %}
+          {% set end_x = 20 + 160 * angle %}
+          <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none"
+            stroke="{{ '#22c55e' if compliance_pct >= 85 else '#f59e0b' if compliance_pct >= 65 else '#ef4444' }}"
+            stroke-width="16" stroke-linecap="round"
+            stroke-dasharray="{{ compliance_pct * 2.51 }}, 251"/>
+          <text x="100" y="90" text-anchor="middle" font-size="28" font-weight="800" fill="#0f172a">{{ compliance_pct }}%</text>
+          <text x="100" y="108" text-anchor="middle" font-size="10" fill="#64748b">Compliance Rate</text>
+        </svg>
+      </div>
+      <div class="meter-details">
+        <span><strong>{{ resolved_hazards }}</strong>/{{ total_hazards }} hazards resolved</span>
+        <span>Avg audit score: <strong>{{ avg_score }}%</strong></span>
+      </div>
+    </div>
+    <div class="compliance-stats">
+      <div class="cs-card cs-blue"><div class="cs-icon"><i class="fa-solid fa-clipboard-check"></i></div><div class="cs-val">{{ inspections_total }}</div><div class="cs-lbl">Equipment Tracked</div></div>
+      <div class="cs-card cs-red"><div class="cs-icon"><i class="fa-solid fa-clock-rotate-left"></i></div><div class="cs-val">{{ overdue_count }}</div><div class="cs-lbl">Overdue Inspections</div></div>
+      <div class="cs-card cs-green"><div class="cs-icon"><i class="fa-solid fa-file-shield"></i></div><div class="cs-val">{{ audits|length }}</div><div class="cs-lbl">Audits Conducted</div></div>
+      <div class="cs-card cs-amber"><div class="cs-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="cs-val">{{ total_hazards }}</div><div class="cs-lbl">Total Hazards</div></div>
+    </div>
+  </div>
+
+  <!-- Audit History -->
+  <div class="auditor-panel">
+    <div class="panel-header">
+      <h2><i class="fa-solid fa-list-check"></i> Compliance Audit History</h2>
+      <button class="btn-auditor-sm" onclick="document.getElementById('createAuditModal').style.display='flex'">
+        <i class="fa-solid fa-plus"></i> New Audit
+      </button>
+    </div>
+    <div class="panel-body p-0">
+      {% if audits %}
+      <table class="audit-table">
+        <thead><tr><th>Audit Title</th><th>Type</th><th>Auditor</th><th>Date</th><th>Score</th><th>Status</th><th>Report</th></tr></thead>
+        <tbody>
+          {% for a in audits %}
+          <tr>
+            <td>
+              <div class="audit-title-cell">
+                <strong>{{ a.audit_title }}</strong>
+                <span class="audit-scope">{{ a.scope }}</span>
+              </div>
+            </td>
+            <td><span class="type-badge type-{{ a.audit_type|lower }}">{{ a.audit_type }}</span></td>
+            <td class="td-sm">{{ a.auditor_name }}</td>
+            <td class="td-sm">{{ a.audit_date }}</td>
+            <td>
+              <div class="score-cell">
+                <div class="score-bar-bg">
+                  <div class="score-bar-fill {{ 'bar-green' if a.compliance_score >= 85 else 'bar-amber' if a.compliance_score >= 65 else 'bar-red' }}"
+                       style="width: {{ a.compliance_score }}%"></div>
+                </div>
+                <span class="score-pct">{{ a.compliance_score }}%</span>
+              </div>
+            </td>
+            <td><span class="audit-status ast-{{ a.status|lower|replace(' ','-') }}">{{ a.status }}</span></td>
+            <td><a href="{{ url_for('audit_report', audit_id=a.audit_id) }}" class="btn-report"><i class="fa-solid fa-file-lines"></i> View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="empty-state"><i class="fa-solid fa-folder-open" style="color:#f59e0b;font-size:2.5rem;"></i><p>No audits yet. Create your first compliance audit.</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Hazard Compliance Table -->
+  <div class="auditor-panel mt-4">
+    <div class="panel-header"><h2><i class="fa-solid fa-shield-exclamation"></i> Hazard Compliance Review</h2></div>
+    <div class="panel-body p-0">
+      {% if hazards %}
+      <table class="audit-table">
+        <thead><tr><th>Hazard</th><th>Severity</th><th>Location</th><th>Reported By</th><th>Status</th><th>Suggested Action</th></tr></thead>
+        <tbody>
+          {% for h in hazards %}
+          <tr>
+            <td><strong>{{ h.title }}</strong></td>
+            <td><span class="hazard-sev-badge sev-{{ h.severity|lower }}">{{ h.severity }}</span></td>
+            <td class="td-sm">{{ h.building }}, Fl.{{ h.floor }}</td>
+            <td class="td-sm">{{ h.reported_by }}</td>
+            <td><span class="status-badge status-{{ h.status|lower|replace(' ','-') }}">{{ h.status }}</span></td>
+            <td class="td-sm">{{ h.suggested_action or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="empty-state"><p>No hazards recorded.</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Create Audit Modal -->
+<div id="createAuditModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header auditor-modal-header">
+      <h3><i class="fa-solid fa-file-shield"></i> Create New Compliance Audit</h3>
+      <button class="modal-close" onclick="document.getElementById('createAuditModal').style.display='none'">&times;</button>
+    </div>
+    <form action="{{ url_for('audit_create') }}" method="POST" class="modal-form">
+      <div class="form-row-2">
+        <div class="form-group"><label>Audit Title *</label><input type="text" name="audit_title" required placeholder="e.g. Q3 Fire Safety Audit"></div>
+        <div class="form-group">
+          <label>Audit Type *</label>
+          <select name="audit_type"><option value="Internal">Internal</option><option value="External">External</option><option value="Regulatory">Regulatory</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Scope / Coverage *</label><input type="text" name="scope" required placeholder="e.g. Main Building & Annex, All Equipment Types"></div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Compliance Score (0–100) *</label>
+          <input type="number" name="compliance_score" min="0" max="100" step="0.1" value="100" required>
+        </div>
+        <div class="form-group">
+          <label>Audit Status</label>
+          <select name="status">
+            <option value="Completed">Completed</option>
+            <option value="Passed">Passed</option>
+            <option value="Failed">Failed</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Scheduled">Scheduled</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group"><label>Audit Date *</label><input type="date" name="audit_date" required value="{{ now.strftime('%Y-%m-%d') }}"></div>
+        <div class="form-group"></div>
+      </div>
+      <div class="form-group"><label>Findings</label><textarea name="findings" rows="2" placeholder="Key observations and compliance findings…"></textarea></div>
+      <div class="form-group"><label>Recommendations</label><textarea name="recommendations" rows="2" placeholder="Recommended corrective measures…"></textarea></div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline-dark" onclick="document.getElementById('createAuditModal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn-auditor"><i class="fa-solid fa-file-shield"></i> Create Audit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.auditor-portal { max-width: 1300px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.auditor-hero { background: linear-gradient(135deg,#451a03 0%,#92400e 50%,#d97706 100%); }
+.portal-hero { border-radius: 20px; padding: 2rem 2.5rem; margin-bottom: 2rem; color: #fff; box-shadow: 0 20px 40px rgba(180,83,9,.3); }
+.portal-hero-inner { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.portal-hero-icon { font-size: 2.5rem; background: rgba(255,255,255,.15); padding: 1rem; border-radius: 16px; }
+.portal-hero-text { flex: 1; }
+.portal-hero-text h1 { font-size: 1.75rem; font-weight: 800; margin-bottom: .25rem; }
+.portal-hero-text p { font-size: .9rem; opacity: .85; }
+.portal-hero-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+.btn-auditor { background: #d97706; color: #fff; border: none; padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: .5rem; font-family: inherit; font-size: .9rem; transition: all .2s; }
+.btn-auditor:hover { background: #b45309; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(217,119,6,.35); }
+.btn-outline-auditor { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.3); padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: .5rem; transition: all .2s; }
+.btn-outline-auditor:hover { background: rgba(255,255,255,.2); }
+.compliance-overview { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+@media(max-width:768px){.compliance-overview{grid-template-columns:1fr;}}
+.compliance-meter-card { background: #fff; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,.06); border: 1px solid #f1f5f9; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.meter-title { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
+.gauge-svg { width: 200px; }
+.meter-details { display: flex; flex-direction: column; gap: .3rem; text-align: center; font-size: .82rem; color: #64748b; }
+.meter-details strong { color: #0f172a; }
+.compliance-stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; }
+.cs-card { background: #fff; border-radius: 16px; padding: 1.25rem 1.5rem; display: flex; flex-direction: column; align-items: center; gap: .5rem; box-shadow: 0 4px 16px rgba(0,0,0,.06); border: 1px solid #f1f5f9; text-align: center; transition: transform .2s; }
+.cs-card:hover { transform: translateY(-2px); }
+.cs-icon { font-size: 1.4rem; padding: .7rem; border-radius: 12px; }
+.cs-blue .cs-icon { background: #dbeafe; color: #2563eb; }
+.cs-red .cs-icon { background: #fef2f2; color: #dc2626; }
+.cs-green .cs-icon { background: #d1fae5; color: #059669; }
+.cs-amber .cs-icon { background: #fef3c7; color: #d97706; }
+.cs-val { font-size: 1.8rem; font-weight: 800; color: #0f172a; }
+.cs-lbl { font-size: .73rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.auditor-panel { background: #fff; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,.06); border: 1px solid #f1f5f9; overflow: hidden; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; }
+.panel-header h2 { font-size: 1rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: .5rem; }
+.panel-body { padding: .75rem; }
+.p-0 { padding: 0; }
+.mt-4 { margin-top: 1.5rem; }
+.btn-auditor-sm { background: #d97706; color: #fff; border: none; padding: .45rem .9rem; border-radius: 8px; font-size: .8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: .35rem; font-family: inherit; transition: all .2s; }
+.btn-auditor-sm:hover { background: #b45309; }
+.audit-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.audit-table th { background: #f8fafc; padding: .65rem .9rem; text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; font-weight: 700; border-bottom: 1px solid #e2e8f0; }
+.audit-table td { padding: .65rem .9rem; border-bottom: 1px solid #f8fafc; color: #1e293b; vertical-align: middle; }
+.audit-table tr:last-child td { border-bottom: none; }
+.audit-table tr:hover td { background: #fffbeb; }
+.audit-title-cell strong { display: block; font-size: .88rem; }
+.audit-scope { font-size: .75rem; color: #94a3b8; }
+.type-badge { font-size: .72rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; text-transform: uppercase; }
+.type-internal { background: #dbeafe; color: #1d4ed8; }
+.type-external { background: #ede9fe; color: #6d28d9; }
+.type-regulatory { background: #fef3c7; color: #92400e; }
+.td-sm { font-size: .78rem; color: #64748b; }
+.score-cell { display: flex; align-items: center; gap: .6rem; min-width: 120px; }
+.score-bar-bg { flex: 1; background: #e2e8f0; border-radius: 999px; height: 6px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 999px; transition: width .6s ease; }
+.bar-green { background: linear-gradient(90deg,#22c55e,#16a34a); }
+.bar-amber { background: linear-gradient(90deg,#f59e0b,#d97706); }
+.bar-red { background: linear-gradient(90deg,#f87171,#dc2626); }
+.score-pct { font-size: .82rem; font-weight: 700; color: #0f172a; white-space: nowrap; }
+.audit-status { font-size: .72rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; text-transform: uppercase; }
+.ast-completed { background: #dbeafe; color: #1d4ed8; }
+.ast-passed { background: #d1fae5; color: #065f46; }
+.ast-failed { background: #fee2e2; color: #b91c1c; }
+.ast-in-progress { background: #fef9c3; color: #713f12; }
+.ast-scheduled { background: #f1f5f9; color: #475569; }
+.btn-report { background: #f59e0b; color: #fff; border: none; padding: .4rem .8rem; border-radius: 8px; font-size: .78rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; transition: all .2s; }
+.btn-report:hover { background: #d97706; }
+.hazard-sev-badge { font-size: .7rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; text-transform: uppercase; }
+.sev-low { background: #dcfce7; color: #16a34a; }
+.sev-medium { background: #fef9c3; color: #854d0e; }
+.sev-high { background: #ffedd5; color: #c2410c; }
+.sev-critical { background: #fee2e2; color: #b91c1c; }
+.status-badge { font-size: .7rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; text-transform: uppercase; }
+.status-open { background: #fee2e2; color: #b91c1c; }
+.status-in-progress { background: #fef9c3; color: #854d0e; }
+.status-resolved { background: #dbeafe; color: #1d4ed8; }
+.status-verified { background: #dcfce7; color: #16a34a; }
+.empty-state { text-align: center; padding: 3rem 1rem; color: #64748b; }
+.empty-state p { margin-top: .75rem; font-size: .9rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.7); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(4px); }
+.modal-card { background: #fff; border-radius: 20px; width: 100%; max-width: 640px; box-shadow: 0 30px 60px rgba(0,0,0,.3); overflow: hidden; max-height: 90vh; overflow-y: auto; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 2rem; position: sticky; top: 0; z-index: 1; }
+.auditor-modal-header { background: linear-gradient(135deg,#451a03,#d97706); color: #fff; }
+.auditor-modal-header h3 { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; }
+.modal-close { background: rgba(255,255,255,.15); border: none; color: #fff; font-size: 1.25rem; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { background: rgba(255,255,255,.3); }
+.modal-form { padding: 1.75rem 2rem; }
+.modal-form .form-group { margin-bottom: 1rem; }
+.modal-form label { display: block; font-size: .78rem; font-weight: 700; color: #475569; margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .04em; }
+.modal-form input,.modal-form select,.modal-form textarea { width: 100%; padding: .65rem .85rem; border: 1px solid #e2e8f0; border-radius: 9px; font-size: .9rem; color: #1e293b; background: #fff; box-sizing: border-box; font-family: inherit; }
+.modal-form input:focus,.modal-form select:focus,.modal-form textarea:focus { border-color: #d97706; outline: none; box-shadow: 0 0 0 3px rgba(217,119,6,.12); }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.modal-footer { display: flex; justify-content: flex-end; gap: .75rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+.btn-outline-dark { background: transparent; border: 1px solid #e2e8f0; color: #64748b; padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .2s; }
+</style>
+{% endblock %}

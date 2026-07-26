@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Safety Equipment — IgniteGuard{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--slate-100);">
+        <div class="brand-icon-wrapper" style="width: 44px; height: 44px; font-size: 1.25rem;">
+            <i class="fa-solid fa-plus-circle"></i>
+        </div>
+        <div>
+            <h1>Register New Safety Asset</h1>
+            <p style="color: var(--slate-500); font-size: 0.875rem;">Enter equipment details to track compliance and predictive maintenance</p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('add_equipment_view') }}">
+        <div class="form-group">
+            <label for="type_id"><i class="fa-solid fa-fire-extinguisher" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Equipment Type *</label>
+            <select name="type_id" id="type_id" required>
+                <option value="">Select Equipment Type</option>
+                {% for t in types %}
+                <option value="{{ t.type_id }}" {% if form_data and form_data.type_id == t.type_id|string %}selected{% endif %}>
+                    {{ t.type_name }} (Mandatory interval: Every {{ t.default_interval_months }} months)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="location_id"><i class="fa-solid fa-location-dot" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Location *</label>
+            <select name="location_id" id="location_id" required>
+                <option value="">Select Facility Location</option>
+                {% for loc in locations %}
+                <option value="{{ loc.location_id }}" {% if form_data and form_data.location_id == loc.location_id|string %}selected{% endif %}>
+                    {{ loc.building }} — Floor {{ loc.floor }} — Room {{ loc.room }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="serial_number"><i class="fa-solid fa-barcode" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Serial Number *</label>
+            <input type="text" name="serial_number" id="serial_number" 
+                   value="{{ form_data.serial_number if form_data else '' }}" 
+                   required minlength="3" placeholder="e.g., CO2-MBD-2-1001">
+        </div>
+
+        <div class="form-group">
+            <label for="manufacturer"><i class="fa-solid fa-industry" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Manufacturer *</label>
+            <input type="text" name="manufacturer" id="manufacturer" 
+                   value="{{ form_data.manufacturer if form_data else '' }}" 
+                   required placeholder="e.g., Safeguard Fire Tech">
+        </div>
+
+        <div class="form-group">
+            <label for="installation_date"><i class="fa-solid fa-calendar-days" style="color: var(--slate-400); margin-right: 0.3rem;"></i> Installation Date *</label>
+            <input type="date" name="installation_date" id="installation_date" 
+                   value="{{ form_data.installation_date if form_data else '' }}" required>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-floppy-disk"></i> Save Safety Asset
+            </button>
+            <a href="{{ url_for('equipment_list') }}" class="btn btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

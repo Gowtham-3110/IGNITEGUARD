@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Hazard & Incident Register — IgniteGuard{% endblock %}
+{% block content %}
+<div class="hazards-page">
+
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1><i class="fa-solid fa-shield-exclamation"></i> Hazard & Incident Register</h1>
+      <p>All reported workplace safety hazards, incidents, and corrective actions.</p>
+    </div>
+    <div class="page-header-filters">
+      <form method="GET" class="filters-form">
+        <select name="severity" onchange="this.form.submit()" class="filter-select">
+          <option value="">All Severities</option>
+          <option value="Low" {% if severity_filter=='Low' %}selected{% endif %}>🟢 Low</option>
+          <option value="Medium" {% if severity_filter=='Medium' %}selected{% endif %}>🟡 Medium</option>
+          <option value="High" {% if severity_filter=='High' %}selected{% endif %}>🟠 High</option>
+          <option value="Critical" {% if severity_filter=='Critical' %}selected{% endif %}>🔴 Critical</option>
+        </select>
+        <select name="status" onchange="this.form.submit()" class="filter-select">
+          <option value="">All Statuses</option>
+          <option value="Open" {% if status_filter=='Open' %}selected{% endif %}>Open</option>
+          <option value="In Progress" {% if status_filter=='In Progress' %}selected{% endif %}>In Progress</option>
+          <option value="Resolved" {% if status_filter=='Resolved' %}selected{% endif %}>Resolved</option>
+          <option value="Verified" {% if status_filter=='Verified' %}selected{% endif %}>Verified</option>
+        </select>
+        {% if status_filter or severity_filter %}
+        <a href="{{ url_for('hazards_list') }}" class="btn-clear">Clear</a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <!-- Summary Badges -->
+  <div class="hazard-summary-row">
+    {% set open_count = hazards|selectattr('status','eq','Open')|list|length %}
+    {% set ip_count = hazards|selectattr('status','eq','In Progress')|list|length %}
+    {% set res_count = hazards|selectattr('status','in',['Resolved','Verified'])|list|length %}
+    <span class="summary-chip chip-open">{{ open_count }} Open</span>
+    <span class="summary-chip chip-progress">{{ ip_count }} In Progress</span>
+    <span class="summary-chip chip-resolved">{{ res_count }} Resolved/Verified</span>
+    <span class="summary-chip chip-total">{{ hazards|length }} Total</span>
+  </div>
+
+  {% if hazards %}
+  <div class="hazards-grid">
+    {% for h in hazards %}
+    <div class="hazard-card sev-border-{{ h.severity|lower }}">
+      <div class="hc-top">
+        <span class="hazard-sev-badge sev-{{ h.severity|lower }}">{{ h.severity }}</span>
+        <span class="status-badge status-{{ h.status|lower|replace(' ','-') }}">{{ h.status }}</span>
+        <span class="hc-date">{{ h.reported_at[:10] if h.reported_at else '' }}</span>
+      </div>
+      <h3 class="hc-title">{{ h.title }}</h3>
+      <p class="hc-desc">{{ h.description }}</p>
+      <div class="hc-meta">
+        <span><i class="fa-solid fa-location-dot"></i> {{ h.building }}, Floor {{ h.floor }}, Room {{ h.room }}</span>
+        {% if h.serial_number %}<span><i class="fa-solid fa-fire-extinguisher"></i> {{ h.serial_number }}</span>{% endif %}
+        <span><i class="fa-solid fa-user"></i> {{ h.reported_by }}</span>
+      </div>
+      {% if h.suggested_action %}
+      <div class="hc-suggestion">
+        <i class="fa-solid fa-lightbulb"></i>
+        <span><strong>Suggested:</strong> {{ h.suggested_action }}</span>
+      </div>
+      {% endif %}
+      {% if h.corrective_action %}
+      <div class="hc-corrective">
+        <i class="fa-solid fa-wrench"></i>
+        <span><strong>Action Taken:</strong> {{ h.corrective_action }}</span>
+      </div>
+      {% endif %}
+      {% if h.verified_by %}
+      <div class="hc-verified">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>Verified by <strong>{{ h.verified_by }}</strong></span>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state-lg">
+    <i class="fa-solid fa-shield-check" style="color:#10b981;font-size:4rem;"></i>
+    <h2>No hazards found</h2>
+    <p>No hazards match your current filter criteria.</p>
+    <a href="{{ url_for('hazards_list') }}" class="btn-clear">Clear Filters</a>
+  </div>
+  {% endif %}
+
+</div>
+
+<style>
+.hazards-page { max-width: 1300px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+.page-header-left h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: .6rem; margin-bottom: .25rem; }
+.page-header-left p { font-size: .9rem; color: #64748b; }
+.filters-form { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.filter-select { padding: .5rem .85rem; border: 1px solid #e2e8f0; border-radius: 9px; font-size: .85rem; color: #1e293b; background: #fff; cursor: pointer; font-family: inherit; }
+.filter-select:focus { outline: none; border-color: #6366f1; }
+.btn-clear { background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; padding: .5rem .85rem; border-radius: 9px; font-size: .82rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .2s; }
+.btn-clear:hover { background: #e2e8f0; }
+.hazard-summary-row { display: flex; gap: .75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.summary-chip { font-size: .78rem; font-weight: 700; padding: .35rem .85rem; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em; }
+.chip-open { background: #fee2e2; color: #b91c1c; }
+.chip-progress { background: #fef9c3; color: #713f12; }
+.chip-resolved { background: #d1fae5; color: #065f46; }
+.chip-total { background: #f1f5f9; color: #475569; }
+.hazards-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(340px,1fr)); gap: 1.25rem; }
+.hazard-card { background: #fff; border-radius: 16px; padding: 1.25rem 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,.06); border: 1px solid #f1f5f9; border-top: 4px solid; transition: transform .2s, box-shadow .2s; }
+.hazard-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.1); }
+.sev-border-low { border-top-color: #22c55e; }
+.sev-border-medium { border-top-color: #f59e0b; }
+.sev-border-high { border-top-color: #f97316; }
+.sev-border-critical { border-top-color: #ef4444; }
+.hc-top { display: flex; align-items: center; gap: .6rem; margin-bottom: .75rem; flex-wrap: wrap; }
+.hc-date { font-size: .72rem; color: #94a3b8; margin-left: auto; }
+.hc-title { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: .5rem; }
+.hc-desc { font-size: .85rem; color: #475569; line-height: 1.55; margin-bottom: .85rem; }
+.hc-meta { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .85rem; }
+.hc-meta span { font-size: .78rem; color: #64748b; display: flex; align-items: center; gap: .35rem; }
+.hc-suggestion { display: flex; align-items: flex-start; gap: .5rem; padding: .6rem .75rem; background: #fffbeb; border-radius: 9px; font-size: .8rem; color: #713f12; margin-bottom: .5rem; }
+.hc-suggestion i { color: #d97706; margin-top: .1rem; flex-shrink: 0; }
+.hc-corrective { display: flex; align-items: flex-start; gap: .5rem; padding: .6rem .75rem; background: #eff6ff; border-radius: 9px; font-size: .8rem; color: #1d4ed8; margin-bottom: .5rem; }
+.hc-corrective i { color: #3b82f6; margin-top: .1rem; flex-shrink: 0; }
+.hc-verified { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: #065f46; }
+.hc-verified i { color: #22c55e; }
+.hazard-sev-badge { font-size: .7rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; text-transform: uppercase; }
+.sev-low { background: #dcfce7; color: #16a34a; }
+.sev-medium { background: #fef9c3; color: #854d0e; }
+.sev-high { background: #ffedd5; color: #c2410c; }
+.sev-critical { background: #fee2e2; color: #b91c1c; }
+.status-badge { font-size: .7rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; text-transform: uppercase; }
+.status-open { background: #fee2e2; color: #b91c1c; }
+.status-in-progress { background: #fef9c3; color: #854d0e; }
+.status-resolved { background: #dbeafe; color: #1d4ed8; }
+.status-verified { background: #dcfce7; color: #16a34a; }
+.empty-state-lg { text-align: center; padding: 6rem 1rem; color: #64748b; }
+.empty-state-lg h2 { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin: 1rem 0 .5rem; }
+.empty-state-lg p { margin-bottom: 1.5rem; }
+</style>
+{% endblock %}

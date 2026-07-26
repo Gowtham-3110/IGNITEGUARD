@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}Inspector Portal — IgniteGuard{% endblock %}
+{% block content %}
+<div class="portal-wrapper inspector-portal">
+
+  <div class="portal-hero inspector-hero">
+    <div class="portal-hero-inner">
+      <div class="portal-hero-icon"><i class="fa-solid fa-magnifying-glass-location"></i></div>
+      <div class="portal-hero-text">
+        <h1>Safety Inspector Portal</h1>
+        <p>Conduct inspections, report hazards, and verify corrective actions.</p>
+      </div>
+      <div class="portal-hero-actions">
+        <button class="btn btn-inspector" onclick="document.getElementById('reportHazardModal').style.display='flex'">
+          <i class="fa-solid fa-triangle-exclamation"></i> Report Hazard
+        </button>
+        <a href="{{ url_for('equipment_list') }}" class="btn-outline-light">
+          <i class="fa-solid fa-fire-extinguisher"></i> All Equipment
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="portal-kpis">
+    <div class="kpi-card kpi-warning">
+      <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="kpi-body"><div class="kpi-value">{{ open_hazards|length }}</div><div class="kpi-label">Open Hazards</div></div>
+    </div>
+    <div class="kpi-card kpi-danger">
+      <div class="kpi-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <div class="kpi-body"><div class="kpi-value">{{ overdue_equipment|length }}</div><div class="kpi-label">Overdue Inspections</div></div>
+    </div>
+    <div class="kpi-card kpi-caution">
+      <div class="kpi-icon"><i class="fa-solid fa-calendar-day"></i></div>
+      <div class="kpi-body"><div class="kpi-value">{{ approaching_equipment|length }}</div><div class="kpi-label">Due This Month</div></div>
+    </div>
+    <div class="kpi-card kpi-success">
+      <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+      <div class="kpi-body"><div class="kpi-value">{{ resolved_hazards|length }}</div><div class="kpi-label">Resolved Hazards</div></div>
+    </div>
+  </div>
+
+  <div class="portal-grid-2">
+    <!-- Active Hazards -->
+    <div class="portal-panel">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-shield-exclamation"></i> Active Hazard Reports</h2>
+        <a href="{{ url_for('hazards_list') }}" class="panel-link">View All <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
+      <div class="panel-body">
+        {% if open_hazards %}
+          {% for h in open_hazards %}
+          <div class="hazard-item sev-{{ h.severity|lower }}">
+            <div class="hazard-main">
+              <span class="hazard-sev-badge sev-{{ h.severity|lower }}">{{ h.severity }}</span>
+              <div class="hazard-info">
+                <strong>{{ h.title }}</strong>
+                <span class="hazard-loc"><i class="fa-solid fa-location-dot"></i> {{ h.building }}, Fl.{{ h.floor }}, Rm.{{ h.room }}</span>
+              </div>
+              <span class="status-badge status-{{ h.status|lower|replace(' ','-') }}">{{ h.status }}</span>
+            </div>
+            <form action="{{ url_for('hazard_update', hazard_id=h.hazard_id) }}" method="POST" class="inline-form">
+              <select name="status" class="form-select-sm">
+                <option value="Open" {% if h.status=='Open' %}selected{% endif %}>Open</option>
+                <option value="In Progress" {% if h.status=='In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Resolved" {% if h.status=='Resolved' %}selected{% endif %}>Resolved</option>
+                <option value="Verified" {% if h.status=='Verified' %}selected{% endif %}>Verified</option>
+              </select>
+              <input type="text" name="corrective_action" placeholder="Corrective action…" class="form-input-sm">
+              <button type="submit" class="btn-action-sm">Update</button>
+            </form>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state"><i class="fa-solid fa-circle-check" style="color:#10b981;font-size:2rem;"></i><p>No open hazards — all clear!</p></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Overdue Inspections -->
+    <div class="portal-panel">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-clipboard-list"></i> Overdue Inspections</h2>
+        <a href="{{ url_for('equipment_list') }}" class="panel-link">View All <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
+      <div class="panel-body">
+        {% if overdue_equipment %}
+          {% for e in overdue_equipment[:8] %}
+          <div class="inspection-item">
+            <div class="insp-left">
+              <span class="insp-type">{{ e.type_name }}</span>
+              <span class="insp-serial">{{ e.serial_number }}</span>
+            </div>
+            <div class="insp-mid">
+              <span class="insp-loc"><i class="fa-solid fa-location-dot"></i> {{ e.building }}, Fl.{{ e.floor }}</span>
+              <span class="insp-due overdue-text">Due: {{ e.next_due_date or 'Never' }}</span>
+            </div>
+            <a href="{{ url_for('add_inspection', equipment_id=e.equipment_id) }}" class="btn-inspect">
+              <i class="fa-solid fa-pen-to-square"></i> Inspect
+            </a>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state"><i class="fa-solid fa-calendar-check" style="color:#10b981;font-size:2rem;"></i><p>No overdue inspections!</p></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Resolved Hazards Table -->
+  {% if resolved_hazards %}
+  <div class="portal-panel mt-4">
+    <div class="panel-header"><h2><i class="fa-solid fa-circle-check"></i> Resolved & Verified Hazards</h2></div>
+    <div class="panel-body p-0">
+      <table class="data-table">
+        <thead><tr><th>Title</th><th>Severity</th><th>Location</th><th>Corrective Action</th><th>Verified By</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for h in resolved_hazards %}
+          <tr>
+            <td><strong>{{ h.title }}</strong></td>
+            <td><span class="hazard-sev-badge sev-{{ h.severity|lower }}">{{ h.severity }}</span></td>
+            <td>{{ h.building }}, Fl.{{ h.floor }}, Rm.{{ h.room }}</td>
+            <td class="text-sm">{{ h.corrective_action or '—' }}</td>
+            <td class="text-sm">{{ h.verified_by or '—' }}</td>
+            <td><span class="status-badge status-{{ h.status|lower }}">{{ h.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Report Hazard Modal -->
+<div id="reportHazardModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header inspector-modal-header">
+      <h3><i class="fa-solid fa-triangle-exclamation"></i> Report New Hazard</h3>
+      <button class="modal-close" onclick="document.getElementById('reportHazardModal').style.display='none'">&times;</button>
+    </div>
+    <form action="{{ url_for('hazard_add') }}" method="POST" class="modal-form">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Hazard Title *</label>
+          <input type="text" name="title" placeholder="e.g. Blocked Fire Exit" required>
+        </div>
+        <div class="form-group">
+          <label>Severity *</label>
+          <select name="severity">
+            <option value="Low">🟢 Low</option>
+            <option value="Medium" selected>🟡 Medium</option>
+            <option value="High">🟠 High</option>
+            <option value="Critical">🔴 Critical</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Location *</label>
+          <select name="location_id" required>
+            <option value="">— Select Location —</option>
+            {% for loc in locations %}
+            <option value="{{ loc.location_id }}">{{ loc.building }} – Fl.{{ loc.floor }}, Rm.{{ loc.room }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Related Equipment</label>
+          <select name="equipment_id">
+            <option value="">— None —</option>
+            {% for e in equipment %}
+            <option value="{{ e.equipment_id }}">{{ e.serial_number }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description *</label>
+        <textarea name="description" rows="3" placeholder="Describe the hazard…" required></textarea>
+      </div>
+      <div class="form-group">
+        <label>Suggested Corrective Action</label>
+        <input type="text" name="suggested_action" placeholder="What action should be taken?">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline-dark" onclick="document.getElementById('reportHazardModal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn btn-inspector"><i class="fa-solid fa-paper-plane"></i> Submit Report</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+:root { --ig: #10b981; --ig-dark: #064e3b; }
+.inspector-portal { max-width: 1280px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.portal-hero { border-radius: 20px; padding: 2rem 2.5rem; margin-bottom: 2rem; background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%); color: #fff; box-shadow: 0 20px 40px rgba(6,78,59,.3); }
+.portal-hero-inner { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.portal-hero-icon { font-size: 2.5rem; background: rgba(255,255,255,.15); padding: 1rem; border-radius: 16px; }
+.portal-hero-text { flex: 1; }
+.portal-hero-text h1 { font-size: 1.75rem; font-weight: 800; margin-bottom: .25rem; }
+.portal-hero-text p { font-size: .9rem; opacity: .85; }
+.portal-hero-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+.btn-inspector { background: var(--ig); color: #fff; border: none; padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: .5rem; transition: all .2s; font-family: inherit; font-size: .9rem; }
+.btn-inspector:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,.35); }
+.btn-outline-light { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.3); padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: .5rem; transition: all .2s; }
+.btn-outline-light:hover { background: rgba(255,255,255,.2); }
+.portal-kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 1rem; margin-bottom: 2rem; }
+.kpi-card { background: #fff; border-radius: 16px; padding: 1.25rem 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 4px 16px rgba(0,0,0,.06); border: 1px solid #f1f5f9; }
+.kpi-icon { font-size: 1.5rem; padding: .75rem; border-radius: 12px; }
+.kpi-warning .kpi-icon { background: #fffbeb; color: #d97706; }
+.kpi-danger .kpi-icon { background: #fef2f2; color: #dc2626; }
+.kpi-caution .kpi-icon { background: #fff7ed; color: #ea580c; }
+.kpi-success .kpi-icon { background: #f0fdf4; color: #16a34a; }
+.kpi-value { font-size: 2rem; font-weight: 800; color: #0f172a; line-height: 1; }
+.kpi-label { font-size: .75rem; color: #64748b; font-weight: 600; margin-top: .15rem; text-transform: uppercase; letter-spacing: .04em; }
+.portal-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+@media(max-width:768px){.portal-grid-2{grid-template-columns:1fr;}}
+.portal-panel { background: #fff; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,.06); border: 1px solid #f1f5f9; overflow: hidden; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; }
+.panel-header h2 { font-size: 1rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: .5rem; }
+.panel-link { font-size: .8rem; color: var(--ig); font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: .25rem; }
+.panel-body { padding: .75rem; max-height: 440px; overflow-y: auto; }
+.p-0 { padding: 0; }
+.hazard-item { border-radius: 10px; padding: .75rem 1rem; margin-bottom: .5rem; border-left: 4px solid; }
+.sev-low,.hazard-item.sev-low { border-left-color: #22c55e; background: #f0fdf4; }
+.sev-medium,.hazard-item.sev-medium { border-left-color: #f59e0b; background: #fffbeb; }
+.sev-high,.hazard-item.sev-high { border-left-color: #f97316; background: #fff7ed; }
+.sev-critical,.hazard-item.sev-critical { border-left-color: #ef4444; background: #fef2f2; }
+.hazard-main { display: flex; align-items: center; gap: .75rem; margin-bottom: .5rem; flex-wrap: wrap; }
+.hazard-sev-badge { font-size: .7rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; text-transform: uppercase; }
+.sev-low { background: #dcfce7; color: #16a34a; }
+.sev-medium { background: #fef9c3; color: #854d0e; }
+.sev-high { background: #ffedd5; color: #c2410c; }
+.sev-critical { background: #fee2e2; color: #b91c1c; }
+.hazard-info { flex: 1; }
+.hazard-info strong { display: block; font-size: .9rem; color: #1e293b; }
+.hazard-loc { font-size: .75rem; color: #64748b; display: flex; align-items: center; gap: .3rem; margin-top: .1rem; }
+.inline-form { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.form-select-sm,.form-input-sm { padding: .35rem .6rem; border: 1px solid #e2e8f0; border-radius: 7px; font-size: .8rem; color: #1e293b; background: #fff; }
+.form-input-sm { flex: 1; min-width: 90px; }
+.btn-action-sm { background: var(--ig); color: #fff; border: none; padding: .35rem .75rem; border-radius: 7px; font-size: .8rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .2s; }
+.btn-action-sm:hover { background: #059669; }
+.status-badge { font-size: .7rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; text-transform: uppercase; }
+.status-open { background: #fee2e2; color: #b91c1c; }
+.status-in-progress { background: #fef9c3; color: #854d0e; }
+.status-resolved { background: #dbeafe; color: #1d4ed8; }
+.status-verified { background: #dcfce7; color: #16a34a; }
+.inspection-item { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; border-radius: 10px; margin-bottom: .4rem; background: #fef2f2; border: 1px solid #fecaca; }
+.insp-left,.insp-mid { flex: 1; }
+.insp-type { display: block; font-size: .85rem; font-weight: 600; color: #1e293b; }
+.insp-serial,.insp-loc { font-size: .75rem; color: #64748b; display: flex; align-items: center; gap: .3rem; }
+.insp-due { display: block; font-size: .8rem; font-weight: 600; }
+.overdue-text { color: #b91c1c; }
+.btn-inspect { background: #dc2626; color: #fff; border: none; padding: .4rem .8rem; border-radius: 8px; font-size: .8rem; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: .3rem; transition: all .2s; }
+.btn-inspect:hover { background: #b91c1c; }
+.empty-state { text-align: center; padding: 3rem 1rem; color: #64748b; }
+.empty-state p { margin-top: .75rem; font-size: .9rem; }
+.data-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.data-table th { background: #f8fafc; padding: .6rem .75rem; text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; font-weight: 700; border-bottom: 1px solid #e2e8f0; }
+.data-table td { padding: .6rem .75rem; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
+.data-table tr:last-child td { border-bottom: none; }
+.text-sm { font-size: .8rem; color: #64748b; }
+.mt-4 { margin-top: 1.5rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.7); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(4px); }
+.modal-card { background: #fff; border-radius: 20px; width: 100%; max-width: 640px; box-shadow: 0 30px 60px rgba(0,0,0,.3); overflow: hidden; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 2rem; }
+.inspector-modal-header { background: linear-gradient(135deg,#064e3b,#047857); color: #fff; }
+.inspector-modal-header h3 { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; }
+.modal-close { background: rgba(255,255,255,.15); border: none; color: #fff; font-size: 1.25rem; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { background: rgba(255,255,255,.3); }
+.modal-form { padding: 1.75rem 2rem; }
+.modal-form .form-group { margin-bottom: 1rem; }
+.modal-form label { display: block; font-size: .78rem; font-weight: 700; color: #475569; margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .04em; }
+.modal-form input,.modal-form select,.modal-form textarea { width: 100%; padding: .65rem .85rem; border: 1px solid #e2e8f0; border-radius: 9px; font-size: .9rem; color: #1e293b; background: #fff; box-sizing: border-box; font-family: inherit; }
+.modal-form input:focus,.modal-form select:focus,.modal-form textarea:focus { border-color: var(--ig); outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,.12); }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.modal-footer { display: flex; justify-content: flex-end; gap: .75rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+.btn-outline-dark { background: transparent; border: 1px solid #e2e8f0; color: #64748b; padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all .2s; font-family: inherit; }
+</style>
+{% endblock %}

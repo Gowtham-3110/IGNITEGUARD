@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}{{ equipment.serial_number }} Details — IgniteGuard Fire Safety Register{% endblock %}
+
+{% block content %}
+<div class="detail-page">
+    <!-- Header Banner -->
+    <div class="detail-header">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem;">
+                <span class="badge" style="background: var(--slate-100); color: var(--slate-700); font-size: 0.8rem;">
+                    <i class="fa-solid fa-barcode"></i> {{ equipment.serial_number }}
+                </span>
+                <span class="badge" style="background: var(--brand-primary-light); color: var(--brand-primary); font-size: 0.8rem;">
+                    {{ equipment.type_name }}
+                </span>
+            </div>
+            <h1>{{ equipment.serial_number }}</h1>
+            <p class="subtitle" style="color: var(--slate-500); font-size: 0.9rem;">
+                Manufacturer: <strong>{{ equipment.manufacturer }}</strong>
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="{{ url_for('equipment_list') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-arrow-left"></i> Back to List
+            </a>
+            <a href="{{ url_for('add_inspection', equipment_id=equipment.equipment_id) }}" class="btn btn-primary">
+                <i class="fa-solid fa-clipboard-check"></i>
+                <span>Record Inspection</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Details Grid -->
+    <div class="detail-grid">
+        <div class="detail-card">
+            <h3><i class="fa-solid fa-sliders" style="color: var(--brand-primary);"></i> Equipment Specifications</h3>
+            
+            <div class="detail-row">
+                <span><i class="fa-solid fa-location-dot" style="margin-right: 0.4rem; color: var(--slate-400);"></i> Location:</span>
+                <strong>{{ equipment.building }}, Floor {{ equipment.floor }}, Rm {{ equipment.room }}</strong>
+            </div>
+            <div class="detail-row">
+                <span><i class="fa-solid fa-calendar-plus" style="margin-right: 0.4rem; color: var(--slate-400);"></i> Installed On:</span>
+                <strong>{{ equipment.installation_date }}</strong>
+            </div>
+            <div class="detail-row">
+                <span><i class="fa-solid fa-shield-halved" style="margin-right: 0.4rem; color: var(--slate-400);"></i> Current Status:</span>
+                <strong style="text-transform: capitalize;">{{ equipment.current_status }}</strong>
+            </div>
+            <div class="detail-row">
+                <span><i class="fa-solid fa-clock-rotate-left" style="margin-right: 0.4rem; color: var(--slate-400);"></i> Inspection Interval:</span>
+                <strong>Every {{ equipment.default_interval_months }} Months</strong>
+            </div>
+        </div>
+
+        <div class="detail-card">
+            <h3><i class="fa-solid fa-brain" style="color: var(--info);"></i> Predictive ML Risk Assessment</h3>
+            {% if prediction %}
+                {% if prediction.at_risk %}
+                <div class="risk-box high-risk">
+                    <div class="risk-title">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>High Risk of Delay Detected</span>
+                    </div>
+                    <div class="risk-detail">
+                        Risk Probability: {{ "%.1f"|format(prediction.risk_probability * 100) }}% | Model Confidence: {{ prediction.confidence }}
+                    </div>
+                    <div class="risk-bar-container" style="width: 100%; height: 8px; margin-bottom: 1rem;">
+                        <div class="risk-bar-fill risk-bar-high" style="width: {{ prediction.risk_probability * 100 }}%;"></div>
+                    </div>
+                    <p style="font-size: 0.875rem; line-height: 1.4;">Historical inspection patterns indicate high probability of inspection delay. Prioritize this unit for immediate scheduling.</p>
+                </div>
+                {% else %}
+                <div class="risk-box low-risk">
+                    <div class="risk-title">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Low Risk Asset</span>
+                    </div>
+                    <div class="risk-detail">Model Confidence: {{ prediction.confidence }}</div>
+                    <div class="risk-bar-container" style="width: 100%; height: 8px; margin-bottom: 1rem;">
+                        <div class="risk-bar-fill risk-bar-low" style="width: 15%;"></div>
+                    </div>
+                    <p style="font-size: 0.875rem; line-height: 1.4;">No risk anomalies or inspection delay patterns detected for this unit.</p>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="risk-box unknown">
+                    <div class="risk-title"><i class="fa-solid fa-circle-info"></i> Predictive Model Inactive</div>
+                    <p style="font-size: 0.875rem; margin-top: 0.4rem;">Train the prediction engine using the retrain button on the main dashboard.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- History Table -->
+    <div class="page-header" style="margin-top: 1rem; margin-bottom: 1rem;">
+        <h2><i class="fa-solid fa-history" style="margin-right: 0.5rem; color: var(--slate-600);"></i> Inspection Audit History</h2>
+    </div>
+
+    {% if history %}
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Inspection Date</th>
+                    <th>Inspector</th>
+                    <th>Result</th>
+                    <th>Next Scheduled Due</th>
+                    <th>Observations & Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in history %}
+                <tr>
+                    <td><strong>{{ h.inspection_date }}</strong></td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div class="user-avatar-placeholder" style="width: 24px; height: 24px; font-size: 0.7rem;">
+                                {{ h.inspector_name[:1].upper() if h.inspector_name else 'I' }}
+                            </div>
+                            <span>{{ h.inspector_name }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        {% if h.result == 'pass' %}
+                            <span class="badge badge-pass"><i class="fa-solid fa-check"></i> PASS</span>
+                        {% elif h.result == 'needs_repair' %}
+                            <span class="badge badge-needs_repair"><i class="fa-solid fa-wrench"></i> REPAIR REQUIRED</span>
+                        {% else %}
+                            <span class="badge badge-fail"><i class="fa-solid fa-xmark"></i> FAIL</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ h.next_due_date }}</td>
+                    <td>{{ h.notes or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fa-solid fa-clipboard-list"></i>
+        <p>No historical inspection records logged yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

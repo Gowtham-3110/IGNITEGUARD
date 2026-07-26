@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Audit Report #{{ audit.audit_id }} — IgniteGuard{% endblock %}
+{% block content %}
+<div class="report-page">
+
+  <div class="report-actions">
+    <a href="{{ url_for('portal_auditor') }}" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Back to Auditor Portal</a>
+    <button class="btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Report</button>
+  </div>
+
+  <div class="report-card" id="auditReport">
+
+    <!-- Report Header -->
+    <div class="report-header">
+      <div class="report-logo-area">
+        <div class="report-logo-icon"><i class="fa-solid fa-fire-flame-curved"></i></div>
+        <div class="report-logo-text">
+          <span class="report-org">IgniteGuard Fire Safety System</span>
+          <span class="report-doc-type">OFFICIAL COMPLIANCE AUDIT REPORT</span>
+        </div>
+      </div>
+      <div class="report-meta-right">
+        <div class="report-meta-row"><span>Report ID</span><strong>#{{ '%04d'|format(audit.audit_id) }}</strong></div>
+        <div class="report-meta-row"><span>Audit Date</span><strong>{{ audit.audit_date }}</strong></div>
+        <div class="report-meta-row"><span>Generated</span><strong>{{ now.strftime('%Y-%m-%d %H:%M') }}</strong></div>
+      </div>
+    </div>
+
+    <div class="report-divider"></div>
+
+    <!-- Title Section -->
+    <div class="report-title-section">
+      <h1 class="report-title">{{ audit.audit_title }}</h1>
+      <div class="report-badges">
+        <span class="type-badge type-{{ audit.audit_type|lower }}">{{ audit.audit_type }} Audit</span>
+        <span class="audit-status ast-{{ audit.status|lower|replace(' ','-') }}">{{ audit.status }}</span>
+      </div>
+    </div>
+
+    <!-- Key Details Grid -->
+    <div class="report-details-grid">
+      <div class="detail-item">
+        <span class="detail-label">Lead Auditor</span>
+        <span class="detail-value">{{ audit.auditor_name }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Audit Scope</span>
+        <span class="detail-value">{{ audit.scope }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Audit Type</span>
+        <span class="detail-value">{{ audit.audit_type }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Audit Date</span>
+        <span class="detail-value">{{ audit.audit_date }}</span>
+      </div>
+    </div>
+
+    <!-- Compliance Score -->
+    <div class="compliance-score-section">
+      <div class="cs-label">Overall Compliance Score</div>
+      <div class="cs-score-display">
+        <div class="cs-big-score {{ 'score-green' if audit.compliance_score >= 85 else 'score-amber' if audit.compliance_score >= 65 else 'score-red' }}">
+          {{ audit.compliance_score }}%
+        </div>
+        <div class="cs-bar-container">
+          <div class="cs-bar-track">
+            <div class="cs-bar-fill {{ 'bar-green' if audit.compliance_score >= 85 else 'bar-amber' if audit.compliance_score >= 65 else 'bar-red' }}"
+                 style="width: {{ audit.compliance_score }}%"></div>
+          </div>
+          <div class="cs-bar-labels">
+            <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+          </div>
+        </div>
+        <div class="cs-status-label {{ 'csl-pass' if audit.compliance_score >= 85 else 'csl-warn' if audit.compliance_score >= 65 else 'csl-fail' }}">
+          {% if audit.compliance_score >= 85 %}✅ Compliant{% elif audit.compliance_score >= 65 %}⚠️ Needs Improvement{% else %}❌ Non-Compliant{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="report-divider"></div>
+
+    <!-- Findings -->
+    <div class="report-section">
+      <div class="section-title"><i class="fa-solid fa-magnifying-glass"></i> Audit Findings</div>
+      <div class="section-content">
+        {% if audit.findings %}
+          <p>{{ audit.findings }}</p>
+        {% else %}
+          <p class="text-muted">No specific findings recorded for this audit.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="report-section">
+      <div class="section-title"><i class="fa-solid fa-lightbulb"></i> Recommendations</div>
+      <div class="section-content">
+        {% if audit.recommendations %}
+          <p>{{ audit.recommendations }}</p>
+        {% else %}
+          <p class="text-muted">No recommendations recorded for this audit.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="report-divider"></div>
+
+    <!-- Signature Section -->
+    <div class="signature-section">
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-name">{{ audit.auditor_name }}</div>
+        <div class="sig-role">Lead Compliance Auditor</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-name">Safety Management Representative</div>
+        <div class="sig-role">Authorized Signatory</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-name">Date: {{ audit.audit_date }}</div>
+        <div class="sig-role">Date of Audit</div>
+      </div>
+    </div>
+
+    <!-- Report Footer -->
+    <div class="report-footer">
+      <span><i class="fa-solid fa-shield-halved"></i> IgniteGuard Fire Safety Register — Confidential Compliance Document</span>
+      <span>Report #{{ '%04d'|format(audit.audit_id) }} | {{ audit.audit_date }}</span>
+    </div>
+  </div>
+</div>
+
+<style>
+.report-page { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.report-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.btn-back { display: inline-flex; align-items: center; gap: .5rem; color: #6366f1; font-weight: 600; font-size: .9rem; text-decoration: none; transition: all .2s; }
+.btn-back:hover { color: #4f46e5; }
+.btn-print { background: #1e293b; color: #fff; border: none; padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: .5rem; font-family: inherit; transition: all .2s; }
+.btn-print:hover { background: #0f172a; }
+.report-card { background: #fff; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,.1); padding: 3rem; border: 1px solid #e2e8f0; }
+.report-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+.report-logo-area { display: flex; align-items: center; gap: 1rem; }
+.report-logo-icon { width: 52px; height: 52px; background: linear-gradient(135deg,#f97316,#dc2626); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #fff; box-shadow: 0 6px 16px rgba(234,88,12,.3); }
+.report-org { display: block; font-size: 1.1rem; font-weight: 800; color: #0f172a; }
+.report-doc-type { display: block; font-size: .7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .1em; margin-top: .15rem; }
+.report-meta-right { text-align: right; }
+.report-meta-row { display: flex; align-items: center; gap: 1rem; justify-content: flex-end; margin-bottom: .3rem; }
+.report-meta-row span { font-size: .78rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; }
+.report-meta-row strong { font-size: .88rem; color: #0f172a; font-weight: 700; }
+.report-divider { height: 1px; background: linear-gradient(90deg,transparent,#e2e8f0,transparent); margin: 1.75rem 0; }
+.report-title-section { margin-bottom: 2rem; }
+.report-title { font-size: 1.6rem; font-weight: 800; color: #0f172a; margin-bottom: .75rem; }
+.report-badges { display: flex; gap: .75rem; flex-wrap: wrap; }
+.type-badge { font-size: .72rem; font-weight: 700; padding: .25rem .7rem; border-radius: 999px; text-transform: uppercase; }
+.type-internal { background: #dbeafe; color: #1d4ed8; }
+.type-external { background: #ede9fe; color: #6d28d9; }
+.type-regulatory { background: #fef3c7; color: #92400e; }
+.audit-status { font-size: .72rem; font-weight: 700; padding: .25rem .7rem; border-radius: 999px; text-transform: uppercase; }
+.ast-completed { background: #dbeafe; color: #1d4ed8; }
+.ast-passed { background: #d1fae5; color: #065f46; }
+.ast-failed { background: #fee2e2; color: #b91c1c; }
+.ast-in-progress { background: #fef9c3; color: #713f12; }
+.report-details-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1.25rem; margin-bottom: 2rem; }
+.detail-item { background: #f8fafc; border-radius: 12px; padding: 1rem 1.25rem; }
+.detail-label { display: block; font-size: .72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3rem; }
+.detail-value { font-size: .95rem; font-weight: 600; color: #0f172a; }
+.compliance-score-section { background: #f8fafc; border-radius: 16px; padding: 1.75rem; margin-bottom: 2rem; }
+.cs-label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: 1rem; }
+.cs-score-display { display: flex; align-items: center; gap: 2rem; flex-wrap: wrap; }
+.cs-big-score { font-size: 3.5rem; font-weight: 900; line-height: 1; }
+.score-green { color: #16a34a; }
+.score-amber { color: #d97706; }
+.score-red { color: #dc2626; }
+.cs-bar-container { flex: 1; min-width: 200px; }
+.cs-bar-track { background: #e2e8f0; border-radius: 999px; height: 12px; overflow: hidden; margin-bottom: .4rem; }
+.cs-bar-fill { height: 100%; border-radius: 999px; transition: width .8s ease; }
+.bar-green { background: linear-gradient(90deg,#4ade80,#16a34a); }
+.bar-amber { background: linear-gradient(90deg,#fbbf24,#d97706); }
+.bar-red { background: linear-gradient(90deg,#f87171,#dc2626); }
+.cs-bar-labels { display: flex; justify-content: space-between; font-size: .7rem; color: #94a3b8; }
+.cs-status-label { font-size: 1.1rem; font-weight: 700; }
+.csl-pass { color: #16a34a; }
+.csl-warn { color: #d97706; }
+.csl-fail { color: #dc2626; }
+.report-section { margin-bottom: 1.75rem; }
+.section-title { font-size: .95rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: .5rem; margin-bottom: .85rem; padding-bottom: .5rem; border-bottom: 2px solid #f1f5f9; }
+.section-content p { font-size: .92rem; color: #334155; line-height: 1.7; }
+.text-muted { color: #94a3b8 !important; font-style: italic; }
+.signature-section { display: grid; grid-template-columns: repeat(3,1fr); gap: 2rem; margin: 2rem 0 1.5rem; }
+.sig-block { text-align: center; }
+.sig-line { border-top: 2px solid #334155; margin-bottom: .5rem; }
+.sig-name { font-size: .82rem; font-weight: 700; color: #1e293b; }
+.sig-role { font-size: .72rem; color: #64748b; margin-top: .1rem; }
+.report-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 1.25rem; border-top: 1px solid #e2e8f0; font-size: .75rem; color: #94a3b8; flex-wrap: wrap; gap: .5rem; }
+
+@media print {
+  .report-actions, .navbar, .footer, .flash-messages { display: none !important; }
+  .report-card { box-shadow: none; border: 1px solid #ddd; border-radius: 0; }
+  body { background: white; }
+  .report-page { padding: 0; max-width: 100%; }
+}
+</style>
+{% endblock %}

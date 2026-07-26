@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}Admin Portal — IgniteGuard{% endblock %}
+{% block content %}
+<div class="admin-portal">
+
+  <div class="portal-hero admin-hero">
+    <div class="portal-hero-inner">
+      <div class="portal-hero-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <div class="portal-hero-text">
+        <h1>System Administrator Portal</h1>
+        <p>Manage users, roles, system security, and database health.</p>
+      </div>
+      <div class="portal-hero-actions">
+        <button class="btn-admin" onclick="document.getElementById('createUserModal').style.display='flex'">
+          <i class="fa-solid fa-user-plus"></i> Create User
+        </button>
+        <a href="{{ url_for('admin_backup') }}" class="btn-outline-admin">
+          <i class="fa-solid fa-database"></i> Download Backup
+        </a>
+        <a href="{{ url_for('retrain_model') }}" class="btn-outline-admin">
+          <i class="fa-solid fa-brain"></i> Retrain AI Model
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Stats -->
+  <div class="admin-stats-grid">
+    <div class="stat-card"><div class="stat-icon si-users"><i class="fa-solid fa-users"></i></div><div class="stat-val">{{ stats.users_count }}</div><div class="stat-lbl">Total Users</div></div>
+    <div class="stat-card"><div class="stat-icon si-equip"><i class="fa-solid fa-fire-extinguisher"></i></div><div class="stat-val">{{ stats.equipment_count }}</div><div class="stat-lbl">Active Equipment</div></div>
+    <div class="stat-card"><div class="stat-icon si-insp"><i class="fa-solid fa-clipboard-check"></i></div><div class="stat-val">{{ stats.inspections_count }}</div><div class="stat-lbl">Inspections Logged</div></div>
+    <div class="stat-card"><div class="stat-icon si-haz"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="stat-val">{{ stats.open_hazards }}</div><div class="stat-lbl">Open Hazards</div></div>
+    <div class="stat-card"><div class="stat-icon si-audit"><i class="fa-solid fa-chart-bar"></i></div><div class="stat-val">{{ stats.audits_count }}</div><div class="stat-lbl">Compliance Audits</div></div>
+  </div>
+
+  <div class="admin-grid-2">
+    <!-- User Management Table -->
+    <div class="admin-panel" style="grid-column: 1 / -1;">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-users-gear"></i> User Account Management</h2>
+        <button class="btn-admin-sm" onclick="document.getElementById('createUserModal').style.display='flex'">
+          <i class="fa-solid fa-plus"></i> New User
+        </button>
+      </div>
+      <div class="panel-body p-0">
+        <table class="admin-table">
+          <thead>
+            <tr><th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Provider</th><th>Last Login</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td class="td-id">{{ u.user_id }}</td>
+              <td>
+                <div class="user-cell">
+                  {% if u.picture %}
+                    <img src="{{ u.picture }}" class="user-mini-avatar" alt="{{ u.name }}">
+                  {% else %}
+                    <div class="user-mini-initial">{{ u.name[:1].upper() }}</div>
+                  {% endif %}
+                  <span class="user-cell-name">{{ u.name }}</span>
+                </div>
+              </td>
+              <td class="td-email">{{ u.email }}</td>
+              <td>
+                <span class="role-badge role-{{ u.role|lower|replace(' ','-') }}">{{ u.role }}</span>
+              </td>
+              <td>
+                <span class="status-dot {% if u.status == 'Active' %}dot-active{% else %}dot-inactive{% endif %}">
+                  {{ u.status or 'Active' }}
+                </span>
+              </td>
+              <td class="td-sm">{{ u.auth_provider or 'email' }}</td>
+              <td class="td-sm">{{ u.last_login[:10] if u.last_login else '—' }}</td>
+              <td>
+                <div class="action-btns">
+                  <button class="btn-edit" onclick="openEditModal({{ u.user_id }},'{{ u.name|replace("'","\\'")|replace('"','\\"') }}','{{ u.role }}','{{ u.status or 'Active' }}')">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  {% if u.email != current_user.email %}
+                  <form action="{{ url_for('admin_delete_user', user_id=u.user_id) }}" method="POST" onsubmit="return confirm('Delete this user?');">
+                    <button type="submit" class="btn-del"><i class="fa-solid fa-trash"></i></button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Security Audit Logs -->
+  <div class="admin-panel mt-4">
+    <div class="panel-header"><h2><i class="fa-solid fa-scroll"></i> Security Audit Log (Last 20)</h2></div>
+    <div class="panel-body p-0">
+      <table class="admin-table">
+        <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Details</th><th>IP Address</th></tr></thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td class="td-sm">{{ log.timestamp[:16] if log.timestamp else '—' }}</td>
+            <td class="td-sm">{{ log.user_email or '—' }}</td>
+            <td><span class="log-action log-{{ log.action|lower|replace('_','-') }}">{{ log.action }}</span></td>
+            <td class="td-sm">{{ log.details or '—' }}</td>
+            <td class="td-sm">{{ log.ip_address or 'localhost' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Create User Modal -->
+<div id="createUserModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header admin-modal-header">
+      <h3><i class="fa-solid fa-user-plus"></i> Create New User Account</h3>
+      <button class="modal-close" onclick="document.getElementById('createUserModal').style.display='none'">&times;</button>
+    </div>
+    <form action="{{ url_for('admin_create_user') }}" method="POST" class="modal-form">
+      <div class="form-group"><label>Full Name *</label><input type="text" name="name" required placeholder="e.g. John Smith"></div>
+      <div class="form-group"><label>Google / Account Email *</label><input type="email" name="email" required placeholder="user@gmail.com"></div>
+      <div class="form-group"><label>Set Account Password *</label><input type="password" name="password" required placeholder="Enter password for user"></div>
+      <div class="form-group">
+        <label>Assign Role *</label>
+        <select name="role">
+          <option value="Safety Inspector">🔍 Safety Inspector</option>
+          <option value="System Administrator">👨‍💻 System Administrator</option>
+          <option value="Compliance Auditor">📋 Compliance Auditor</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline-dark" onclick="document.getElementById('createUserModal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn-admin"><i class="fa-solid fa-user-plus"></i> Create Account</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header admin-modal-header">
+      <h3><i class="fa-solid fa-user-pen"></i> Edit User Account</h3>
+      <button class="modal-close" onclick="document.getElementById('editUserModal').style.display='none'">&times;</button>
+    </div>
+    <form id="editUserForm" method="POST" class="modal-form">
+      <div class="form-group"><label>Full Name *</label><input type="text" id="editName" name="name" required></div>
+      <div class="form-group"><label>Reset Password (Leave blank to keep current)</label><input type="password" id="editPassword" name="password" placeholder="Enter new password"></div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="editRole" name="role">
+          <option value="Safety Inspector">🔍 Safety Inspector</option>
+          <option value="System Administrator">👨‍💻 System Administrator</option>
+          <option value="Compliance Auditor">📋 Compliance Auditor</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="editStatus" name="status">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline-dark" onclick="document.getElementById('editUserModal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn-admin"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditModal(userId, name, role, status) {
+  document.getElementById('editUserForm').action = `/admin/users/${userId}/edit`;
+  document.getElementById('editName').value = name;
+  document.getElementById('editRole').value = role;
+  document.getElementById('editStatus').value = status;
+  document.getElementById('editUserModal').style.display = 'flex';
+}
+</script>
+
+<style>
+.admin-portal { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.admin-hero { background: linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4338ca 100%); }
+.portal-hero { border-radius: 20px; padding: 2rem 2.5rem; margin-bottom: 2rem; color: #fff; box-shadow: 0 20px 40px rgba(67,56,202,.3); }
+.portal-hero-inner { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.portal-hero-icon { font-size: 2.5rem; background: rgba(255,255,255,.15); padding: 1rem; border-radius: 16px; }
+.portal-hero-text { flex: 1; }
+.portal-hero-text h1 { font-size: 1.75rem; font-weight: 800; margin-bottom: .25rem; }
+.portal-hero-text p { font-size: .9rem; opacity: .85; }
+.portal-hero-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+.btn-admin { background: #6366f1; color: #fff; border: none; padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: .5rem; font-family: inherit; font-size: .9rem; transition: all .2s; }
+.btn-admin:hover { background: #4f46e5; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99,102,241,.35); }
+.btn-outline-admin { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.3); padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: .5rem; transition: all .2s; }
+.btn-outline-admin:hover { background: rgba(255,255,255,.2); }
+.admin-stats-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: #fff; border-radius: 16px; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: .5rem; box-shadow: 0 4px 16px rgba(0,0,0,.06); border: 1px solid #f1f5f9; text-align: center; transition: transform .2s; }
+.stat-card:hover { transform: translateY(-2px); }
+.stat-icon { font-size: 1.5rem; padding: .75rem; border-radius: 12px; }
+.si-users { background: #ede9fe; color: #7c3aed; }
+.si-equip { background: #fef3c7; color: #d97706; }
+.si-insp { background: #dbeafe; color: #2563eb; }
+.si-haz { background: #fef2f2; color: #dc2626; }
+.si-audit { background: #f0fdf4; color: #16a34a; }
+.stat-val { font-size: 2rem; font-weight: 800; color: #0f172a; }
+.stat-lbl { font-size: .75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.admin-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+.admin-panel { background: #fff; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,.06); border: 1px solid #f1f5f9; overflow: hidden; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; }
+.panel-header h2 { font-size: 1rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: .5rem; }
+.panel-body { padding: .75rem; }
+.p-0 { padding: 0; }
+.mt-4 { margin-top: 1.5rem; }
+.btn-admin-sm { background: #6366f1; color: #fff; border: none; padding: .45rem .9rem; border-radius: 8px; font-size: .8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: .35rem; font-family: inherit; transition: all .2s; }
+.btn-admin-sm:hover { background: #4f46e5; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.admin-table th { background: #f8fafc; padding: .65rem .85rem; text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; font-weight: 700; border-bottom: 1px solid #e2e8f0; }
+.admin-table td { padding: .65rem .85rem; border-bottom: 1px solid #f8fafc; color: #1e293b; vertical-align: middle; }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: #f8fafc; }
+.td-id { color: #94a3b8; font-size: .75rem; font-weight: 600; width: 40px; }
+.td-sm { font-size: .78rem; color: #64748b; }
+.td-email { font-size: .8rem; color: #475569; }
+.user-cell { display: flex; align-items: center; gap: .6rem; }
+.user-mini-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+.user-mini-initial { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; font-size: .8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.user-cell-name { font-weight: 600; font-size: .88rem; }
+.role-badge { font-size: .72rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.role-safety-inspector { background: #d1fae5; color: #065f46; }
+.role-system-administrator { background: #ede9fe; color: #5b21b6; }
+.role-compliance-auditor { background: #fef9c3; color: #713f12; }
+.status-dot { font-size: .78rem; font-weight: 600; display: flex; align-items: center; gap: .35rem; }
+.status-dot::before { content: '●'; font-size: .55rem; }
+.dot-active::before { color: #22c55e; }
+.dot-inactive::before { color: #94a3b8; }
+.dot-active { color: #16a34a; }
+.dot-inactive { color: #94a3b8; }
+.action-btns { display: flex; gap: .4rem; }
+.btn-edit, .btn-del { border: none; padding: .4rem .65rem; border-radius: 7px; cursor: pointer; font-size: .8rem; transition: all .2s; }
+.btn-edit { background: #ede9fe; color: #6d28d9; }
+.btn-edit:hover { background: #ddd6fe; }
+.btn-del { background: #fef2f2; color: #dc2626; }
+.btn-del:hover { background: #fee2e2; }
+.log-action { font-size: .72rem; font-weight: 700; padding: .2rem .55rem; border-radius: 6px; text-transform: uppercase; letter-spacing: .04em; font-family: monospace; background: #f1f5f9; color: #475569; }
+.log-login, .log-google-login { background: #dbeafe; color: #1d4ed8; }
+.log-logout { background: #f1f5f9; color: #475569; }
+.log-create-user { background: #d1fae5; color: #065f46; }
+.log-edit-user { background: #fef9c3; color: #713f12; }
+.log-delete-user { background: #fee2e2; color: #b91c1c; }
+.log-backup-download { background: #ede9fe; color: #5b21b6; }
+.log-report-hazard { background: #ffedd5; color: #9a3412; }
+.log-create-audit { background: #e0f2fe; color: #0369a1; }
+.log-system-seed { background: #f8fafc; color: #64748b; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.7); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(4px); }
+.modal-card { background: #fff; border-radius: 20px; width: 100%; max-width: 540px; box-shadow: 0 30px 60px rgba(0,0,0,.3); overflow: hidden; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 2rem; }
+.admin-modal-header { background: linear-gradient(135deg,#1e1b4b,#4338ca); color: #fff; }
+.admin-modal-header h3 { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; }
+.modal-close { background: rgba(255,255,255,.15); border: none; color: #fff; font-size: 1.25rem; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { background: rgba(255,255,255,.3); }
+.modal-form { padding: 1.75rem 2rem; }
+.modal-form .form-group { margin-bottom: 1rem; }
+.modal-form label { display: block; font-size: .78rem; font-weight: 700; color: #475569; margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .04em; }
+.modal-form input,.modal-form select { width: 100%; padding: .65rem .85rem; border: 1px solid #e2e8f0; border-radius: 9px; font-size: .9rem; color: #1e293b; background: #fff; box-sizing: border-box; font-family: inherit; }
+.modal-form input:focus,.modal-form select:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+.modal-footer { display: flex; justify-content: flex-end; gap: .75rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+.btn-outline-dark { background: transparent; border: 1px solid #e2e8f0; color: #64748b; padding: .65rem 1.25rem; border-radius: 10px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .2s; }
+</style>
+{% endblock %}
