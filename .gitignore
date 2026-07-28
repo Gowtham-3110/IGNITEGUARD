@@ -9,7 +9,8 @@ venv/
 env/
 ENV/
 
-# Database files
+# Database files — local SQLite DB should not be committed
+# (Vercel uses /tmp at runtime; seed data is re-generated on cold start)
 *.db
 *.sqlite3
 

@@ -9,6 +9,10 @@ import numpy as np
 from datetime import datetime
 
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'risk_model.pkl')
+# On Vercel (read-only filesystem) fall back to /tmp which is writable
+if not os.access(os.path.dirname(os.path.abspath(__file__)), os.W_OK):
+    MODEL_PATH = '/tmp/risk_model.pkl'
+
 
 
 def _build_feature_vector(eq):
@@ -161,11 +165,14 @@ def train_model(equipment_rows, inspection_rows):
     clf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
     clf.fit(X_train, y_train)
 
-    # Persist model
-    with open(MODEL_PATH, 'wb') as f:
-        pickle.dump(clf, f)
+    # Persist model — gracefully skip if filesystem is read-only (e.g. Vercel)
+    try:
+        with open(MODEL_PATH, 'wb') as f:
+            pickle.dump(clf, f)
+        print(f"Model trained on {len(X_train)} samples and saved to {MODEL_PATH}.")
+    except OSError as e:
+        print(f"Could not save model to disk ({e}); using in-memory model for this session.")
 
-    print(f"Model trained on {len(X_train)} samples and saved to {MODEL_PATH}.")
     return clf
 
 

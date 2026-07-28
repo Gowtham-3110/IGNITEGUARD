@@ -52,8 +52,15 @@ def parse_google_jwt(credential):
 # Initialize database and session auth check
 @app.before_request
 def setup_and_authorize():
-    if not os.path.exists('fire_safety.db'):
+    from database import DATABASE
+    if not os.path.exists(DATABASE):
         init_db()
+        # Auto-seed demo data on first cold-start (required for Vercel serverless)
+        try:
+            from seed_data import main as seed_main
+            seed_main()
+        except Exception as e:
+            print(f"Seed data warning: {e}")
 
     # Public endpoints that don't require login
     public_endpoints = {'login', 'google_auth', 'demo_login', 'static'}
@@ -545,8 +552,11 @@ def admin_delete_user(user_id):
 @role_required('System Administrator')
 def admin_backup():
     """Download a copy of the SQLite database"""
-    log_system_event(session['user']['email'], 'BACKUP_DOWNLOAD', 'Admin downloaded DB backup', request.remote_addr)
     from database import DATABASE
+    if not os.path.exists(DATABASE):
+        flash('Database backup is not available in this environment.', 'error')
+        return redirect(url_for('portal_admin'))
+    log_system_event(session['user']['email'], 'BACKUP_DOWNLOAD', 'Admin downloaded DB backup', request.remote_addr)
     return send_file(DATABASE, as_attachment=True, download_name='fire_safety_backup.db', mimetype='application/octet-stream')
 
 # ==========================================
@@ -633,6 +643,6 @@ def audit_report(audit_id):
         return redirect(url_for('portal_auditor'))
     return render_template('audit_report.html', audit=audit)
 
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-

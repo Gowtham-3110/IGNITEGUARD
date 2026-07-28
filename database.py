@@ -13,7 +13,10 @@ from datetime import datetime, timedelta
 from contextlib import contextmanager
 import os
 
-DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fire_safety.db')
+_default_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fire_safety.db')
+# Vercel's project root is read-only; use the writable /tmp directory instead.
+DATABASE = _default_db if os.access(os.path.dirname(os.path.abspath(__file__)), os.W_OK) else '/tmp/fire_safety.db'
+
 
 @contextmanager
 def get_db():
@@ -55,13 +58,15 @@ def init_db():
         """)
 
         # Equipment entity - main register
+        # CHANGE 1: serial_number has a UNIQUE constraint — the database will
+        # refuse any INSERT that tries to use a serial number already in use.
         conn.execute("""
             CREATE TABLE IF NOT EXISTS equipment (
                 equipment_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 type_id INTEGER NOT NULL,
                 location_id INTEGER NOT NULL,
                 serial_number TEXT NOT NULL UNIQUE,
-                manufacturer TEXT,
+                manufacturer TEXT NOT NULL,
                 installation_date DATE NOT NULL,
                 current_status TEXT DEFAULT 'active' CHECK(current_status IN ('active', 'inactive', 'decommissioned')),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -578,5 +583,102 @@ def get_audit_by_id(audit_id):
     with get_db() as conn:
         return conn.execute("SELECT * FROM audits WHERE audit_id = ?", (audit_id,)).fetchone()
 
+
+# ==========================================
+# CHANGE 1 — UNIQUE Constraint Demo
+# The equipment.serial_number column has a UNIQUE constraint.
+# Calling demo_unique_constraint_violation() will try to insert a duplicate
+# serial number and return the database error that proves the rule is enforced.
+# ==========================================
+
+def demo_unique_constraint_violation():
+    """
+    CHANGE 1 DEMO: Try to INSERT a row with a serial number that already exists.
+    The database will refuse it because of the UNIQUE constraint on
+    equipment.serial_number.
+    Returns a dict describing the attempt and its outcome.
+    """
+    duplicate_serial = 'DEMO-DUPLICATE-001'
+
+    with get_db() as conn:
+        # Ensure a reference row for the demo exists
+        conn.execute("""
+            INSERT OR IGNORE INTO equipment_types (type_name, default_interval_months, description)
+            VALUES ('Demo Type', 12, 'Used only for constraint demo')
+        """)
+        conn.execute("""
+            INSERT OR IGNORE INTO locations (building, floor, room)
+            VALUES ('Demo Building', 'G', 'Demo Room')
+        """)
+        type_id = conn.execute("SELECT type_id FROM equipment_types WHERE type_name = 'Demo Type'").fetchone()[0]
+        loc_id  = conn.execute("SELECT location_id FROM locations WHERE building = 'Demo Building' AND floor = 'G' AND room = 'Demo Room'").fetchone()[0]
+
+        # Insert the FIRST row — this should succeed
+        conn.execute("""
+            INSERT OR IGNORE INTO equipment (type_id, location_id, serial_number, manufacturer, installation_date)
+            VALUES (?, ?, ?, 'DemoCo', DATE('now'))
+        """, (type_id, loc_id, duplicate_serial))
+
+    # Now attempt a SECOND insert with the same serial_number outside the
+    # transaction so the error propagates cleanly
+    result = {
+        'rule': 'UNIQUE constraint on equipment.serial_number',
+        'attempted_serial': duplicate_serial,
+        'first_insert': 'SUCCESS — row inserted normally',
+        'second_insert': None,
+        'db_refused': False
+    }
+
+    try:
+        conn2 = __import__('sqlite3').connect(DATABASE)
+        conn2.execute("PRAGMA foreign_keys = ON")
+        conn2.execute("""
+            INSERT INTO equipment (type_id, location_id, serial_number, manufacturer, installation_date)
+            VALUES (1, 1, ?, 'DupCo', DATE('now'))
+        """, (duplicate_serial,))
+        conn2.commit()
+        conn2.close()
+        result['second_insert'] = 'INSERT succeeded (unexpected)'
+        result['db_refused'] = False
+    except Exception as e:
+        result['second_insert'] = f'REFUSED — {e}'
+        result['db_refused'] = True
+
+    return result
+
+
+# ==========================================
+# CHANGE 2 — Missing-Match Query (LEFT JOIN … IS NULL)
+# Finds equipment that has NO inspection record in the inspections table.
+# This is the canonical pattern for detecting rows in one table that are
+# missing a related row in another table.
+# ==========================================
+
+def get_equipment_never_inspected():
+    """
+    CHANGE 2: LEFT JOIN ... IS NULL query.
+    Returns equipment rows that have no matching row in the inspections table
+    — i.e. equipment that has never been inspected.
+    """
+    with get_db() as conn:
+        return conn.execute("""
+            SELECT
+                e.equipment_id,
+                e.serial_number,
+                e.manufacturer,
+                e.installation_date,
+                et.type_name,
+                l.building,
+                l.floor,
+                l.room
+            FROM   equipment e
+            JOIN   equipment_types et ON e.type_id     = et.type_id
+            JOIN   locations       l  ON e.location_id = l.location_id
+            LEFT JOIN inspections  i  ON i.equipment_id = e.equipment_id
+            WHERE  i.inspection_id IS NULL
+            ORDER BY e.installation_date ASC
+        """).fetchall()
+
+
 if __name__ == '__main__':
-    init_db()
+    init_db()
